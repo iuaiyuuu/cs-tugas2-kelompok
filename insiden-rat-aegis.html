@@ -1,0 +1,1505 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Insiden RAT dan A.E.G.I.S · Tugas 2 Cyber Security</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,300;1,400;1,500&family=Hanken+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:    #F0EBDE;   /* warm cream / ivory paper canvas */
+    --paper-2:  #E6E0CE;
+    --ink:      #1F2BE0;   /* electric cobalt / royal blue */
+    --ink-soft: #5560E5;   /* lighter cobalt for secondary marks */
+    --grid:     rgba(31, 43, 224, 0.10);  /* very faint blue grid */
+    --rule:     #1F2BE0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #0a0a0a; }
+  body {
+    font-family: 'Hanken Grotesk', 'Helvetica Neue', sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  /* Deck wrapper — fills the viewport */
+  .deck { position: fixed; inset: 0; display: grid; place-items: center; }
+  .stage {
+    position: relative;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    background: var(--paper);
+  }
+
+  /* Graph-paper grid behind every slide */
+  .stage::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: clamp(28px, 2.2vw, 44px) clamp(28px, 2.2vw, 44px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    opacity: 0; pointer-events: none;
+    transition: opacity 280ms ease;
+    z-index: 2;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  /* ─── TYPE SYSTEM ──────────────────────────────────────────── */
+  .disp {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    line-height: 0.92;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  .body-tx {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .micro {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink);
+  }
+  .mono {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-weight: 400;
+    color: var(--ink);
+  }
+
+  /* Single page-number marker, shared across slides.
+     Sits ABOVE the bottom hairline rule, with deliberate space between the
+     two so the chrome elements don't collide on any slide. */
+  .pagenum {
+    position: absolute;
+    right: clamp(28px, 2.4vw, 48px);
+    bottom: clamp(48px, 4.8vh, 76px);
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(11px, 0.82vw, 13px);
+    color: var(--ink);
+    letter-spacing: 0.06em;
+    z-index: 9;
+  }
+
+  /* Top + bottom slim hairlines that frame each slide.
+     Echo of the reference's thin rule above and below the composition. The
+     bottom rule is pinned at the slide's lower edge so the page number,
+     which sits above it, has clear space and never overlaps. */
+  .hairlines::before,
+  .hairlines::after {
+    content: '';
+    position: absolute;
+    left: clamp(36px, 3.6vw, 80px);
+    right: clamp(36px, 3.6vw, 80px);
+    height: 1.5px;
+    background: var(--ink);
+    z-index: 4;
+    pointer-events: none;
+  }
+  .hairlines::before { top: clamp(28px, 2.6vh, 48px); }
+  .hairlines::after  { bottom: clamp(20px, 2vh, 32px); }
+
+  /* Fixed nav hint — sits above the bottom hairline, same vertical level
+     as the page number on the opposite side, so neither overlaps the rule. */
+  .nav-hint {
+    position: fixed;
+    left: clamp(36px, 3.6vw, 80px);
+    bottom: clamp(48px, 4.8vh, 76px);
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(10px, 0.75vw, 12px);
+    color: var(--ink);
+    letter-spacing: 0.08em;
+    opacity: 0.4;
+    z-index: 12;
+    pointer-events: none;
+  }
+
+  /* ─── DECORATIVE: pixel-glitch stair (reusable SVG) ─────────── */
+  /* The SVG below renders a column of stair-stepped rectangles, each
+     filled with vertical scanlines — a direct echo of the reference's
+     "pixelated" shape on the right side. Decorative only, pointer-events
+     disabled, sits behind content. */
+  .pixel-glitch {
+    position: absolute;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .pixel-glitch svg { display: block; width: 100%; height: 100%; }
+
+  /* ─── DECORATIVE: small QR-style block ───────────────────────── */
+  /* The QR is paper-backgrounded so it reads as a discrete patch when it
+     overlaps the pixel-glitch column behind it — without the paper fill,
+     the empty grid cells let the glitch's vertical scanlines bleed
+     through and the QR loses its shape. */
+  .qr-block {
+    position: absolute;
+    pointer-events: none;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 1.5px;
+    background: var(--paper);
+    padding: 4px;
+    box-shadow: 0 0 0 1.5px var(--paper);
+  }
+  .qr-block .px { background: var(--paper); }
+  .qr-block .px.on { background: var(--ink); }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 1 — COVER
+     ────────────────────────────────────────────────────────────── */
+  .s-cover { background: var(--paper); }
+
+  .s-cover .titlewrap {
+    position: absolute;
+    left: clamp(36px, 3.6vw, 80px);
+    top: clamp(80px, 9vh, 160px);
+    z-index: 5;
+    max-width: 60%;
+  }
+  .s-cover .title {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    font-size: clamp(100px, min(11vw, 18vh), 200px);
+    line-height: 0.92;
+    letter-spacing: -0.008em;
+    color: var(--ink);
+  }
+  .s-cover .subkicker {
+    margin-top: clamp(20px, 2.2vh, 36px);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .s-cover .subkicker .l {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: clamp(13px, 1vw, 16px);
+    color: var(--ink);
+  }
+  .s-cover .subkicker .ed {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-size: clamp(28px, min(2.8vw, 4.6vh), 50px);
+    line-height: 1.1;
+    color: var(--ink);
+  }
+
+  /* Pixel-glitch column on the right side of the cover */
+  .s-cover .pixel-glitch {
+    top: clamp(60px, 6vh, 120px);
+    right: clamp(36px, 3.6vw, 80px);
+    width: clamp(280px, 32vw, 560px);
+    bottom: clamp(110px, 12vh, 200px);
+  }
+
+  /* QR block top-right */
+  .s-cover .qr-block {
+    top: clamp(60px, 6vh, 120px);
+    right: clamp(120px, 8vw, 200px);
+    width: clamp(58px, 4.2vw, 84px);
+    height: clamp(58px, 4.2vw, 84px);
+  }
+
+  /* Vertical right-side label column (reads as a stack of micro-text,
+     replacing the Korean column in the reference). */
+  .s-cover .vstack {
+    position: absolute;
+    right: clamp(36px, 3.6vw, 60px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    display: flex; flex-direction: column;
+    gap: clamp(10px, 1.2vh, 18px);
+    align-items: end;
+  }
+  .s-cover .vstack .v-row {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(12px, 0.9vw, 15px);
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  /* Footer row */
+  .s-cover .cfooter {
+    /* Constrained to the left half so it never runs under the right-side
+       pixel-glitch column on any viewport. */
+    position: absolute;
+    left: clamp(36px, 3.6vw, 80px);
+    right: clamp(680px, 40vw, 880px);
+    bottom: clamp(82px, 8vh, 120px);
+    display: flex; justify-content: flex-start; align-items: end;
+    z-index: 5;
+    gap: clamp(28px, 3vw, 56px);
+  }
+  .s-cover .cfooter .colf {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.92vw, 15px);
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .s-cover .cfooter .colf .ftag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: clamp(11px, 0.78vw, 13px);
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 2 — MANIFESTO
+     ────────────────────────────────────────────────────────────── */
+  .s-manifesto { background: var(--paper); }
+  .s-manifesto .stmt-wrap {
+    position: absolute;
+    left: clamp(60px, 8vw, 160px);
+    right: clamp(60px, 8vw, 160px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    text-align: left;
+  }
+  .s-manifesto .stmt {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    font-size: clamp(56px, min(6.4vw, 11vh), 120px);
+    line-height: 1.05;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  .s-manifesto .stmt .roman {
+    font-style: normal;
+    font-weight: 500;
+  }
+  .s-manifesto .attr {
+    margin-top: clamp(28px, 3vh, 50px);
+    display: flex; gap: clamp(14px, 1.4vw, 24px); align-items: center;
+    border-top: 1px solid var(--ink);
+    padding-top: clamp(10px, 1.2vh, 18px);
+  }
+  .s-manifesto .attr .who {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: clamp(12px, 0.85vw, 14px);
+    color: var(--ink);
+  }
+  .s-manifesto .attr .meta-tag {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(12px, 0.82vw, 14px);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    opacity: 0.78;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 3 — INDEX (numbered list of trends)
+     ────────────────────────────────────────────────────────────── */
+  .s-index { background: var(--paper); }
+  .s-index .frame {
+    position: absolute;
+    inset: clamp(76px, 8vh, 130px) clamp(36px, 3.6vw, 80px) clamp(100px, 10vh, 150px);
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: clamp(20px, 2.2vh, 36px);
+    z-index: 5;
+  }
+  .s-index .topbar {
+    display: flex; align-items: end; justify-content: space-between;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: clamp(12px, 1.4vh, 22px);
+    gap: 30px;
+  }
+  .s-index .topbar .h {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-size: clamp(48px, min(5vw, 8.5vh), 100px);
+    line-height: 0.95;
+    color: var(--ink);
+  }
+  .s-index .topbar .lab-tag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: clamp(12px, 0.9vw, 14px);
+    color: var(--ink); text-align: right;
+  }
+  .s-index .list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: clamp(14px, 2vh, 28px) clamp(28px, 3vw, 56px);
+  }
+  .s-index .row { align-self: stretch; }
+  .s-index .row {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: clamp(12px, 1.4vw, 22px);
+    border-bottom: 1px solid rgba(31, 43, 224, 0.18);
+    padding-bottom: clamp(12px, 1.4vh, 20px);
+  }
+  .s-index .row .num-tag {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(13px, 0.9vw, 15px);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    padding-top: 6px;
+  }
+  .s-index .row h3 {
+    margin: 0 0 6px 0;
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    font-size: clamp(26px, 2vw, 40px);
+    line-height: 1.05;
+    color: var(--ink);
+  }
+  .s-index .row p {
+    margin: 0;
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.95vw, 15px);
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 92%;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 4 — CHAPTER (display + intro on glitch background)
+     ────────────────────────────────────────────────────────────── */
+  .s-chapter { background: var(--paper); }
+  .s-chapter .pixel-glitch {
+    top: clamp(60px, 6vh, 120px);
+    right: clamp(0px, 0vw, 0px);
+    width: clamp(220px, 26vw, 460px);
+    bottom: clamp(110px, 12vh, 200px);
+    opacity: 0.75;
+  }
+  .s-chapter .frame {
+    position: absolute;
+    left: clamp(36px, 3.6vw, 80px);
+    right: clamp(280px, 30vw, 540px);
+    top: clamp(80px, 9vh, 140px);
+    bottom: clamp(110px, 11vh, 170px);
+    display: flex; flex-direction: column;
+    justify-content: center;
+    z-index: 5;
+    gap: clamp(18px, 2vh, 32px);
+  }
+  .s-chapter .nm-tag {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(13px, 0.92vw, 15px);
+    color: var(--ink);
+    letter-spacing: 0.06em;
+  }
+  .s-chapter .ttl {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    font-size: clamp(56px, min(6vw, 10vh), 130px);
+    line-height: 1.0;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .s-chapter .lede {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 400;
+    font-size: clamp(15px, 1vw, 18px);
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 56ch;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 5 — DATA (vertical pixel-stack bar chart)
+     ────────────────────────────────────────────────────────────── */
+  .s-data { background: var(--paper); }
+  .s-data .frame {
+    position: absolute;
+    inset: clamp(76px, 8vh, 130px) clamp(36px, 3.6vw, 80px) clamp(100px, 10vh, 150px);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: clamp(20px, 2vh, 36px);
+    z-index: 5;
+  }
+  .s-data .topbar {
+    display: flex; align-items: end; justify-content: space-between;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: clamp(12px, 1.4vh, 22px);
+    gap: 30px;
+  }
+  .s-data .topbar .h {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-size: clamp(46px, min(4.8vw, 8.2vh), 92px);
+    line-height: 0.95;
+    color: var(--ink);
+  }
+  .s-data .topbar .lab-tag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: clamp(12px, 0.9vw, 14px);
+    color: var(--ink); text-align: right;
+  }
+  .s-data .body {
+    display: grid;
+    grid-template-columns: 0.8fr 1.6fr;
+    gap: clamp(28px, 3vw, 56px);
+  }
+  .s-data .col-a {
+    display: flex; flex-direction: column; justify-content: center;
+    gap: clamp(20px, 2.4vh, 36px);
+  }
+  .s-data .stat .vbig {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    font-size: clamp(110px, min(11vw, 18vh), 240px);
+    line-height: 0.92;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+  }
+  .s-data .stat .lab2 {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: clamp(13px, 0.95vw, 15px);
+    color: var(--ink);
+    margin-top: 6px;
+  }
+  .s-data .stat .desc {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(15px, 1vw, 17px);
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 30ch;
+    margin-top: 6px;
+  }
+
+  /* The chart itself: a row of vertical "pixel stacks" — each track is
+     a column of small filled cells, with cell count proportional to the
+     value. Visually echoes the reference's pixel-glitch decoration. */
+  .s-data .chart {
+    display: flex; flex-direction: column; justify-content: end;
+    gap: clamp(10px, 1.2vh, 18px);
+  }
+  .s-data .chart .bars {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: clamp(10px, 1vw, 18px);
+    align-items: end;
+    height: 100%;
+    min-height: clamp(280px, 38vh, 540px);
+  }
+  .s-data .chart .stack {
+    display: flex; flex-direction: column-reverse; gap: 3px;
+    height: 100%;
+  }
+  .s-data .chart .stack .cell {
+    flex: 1 1 0;
+    min-height: 6px;
+    background: rgba(31, 43, 224, 0.10);
+  }
+  .s-data .chart .stack .cell.on { background: var(--ink); }
+  .s-data .chart .ticks {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: clamp(10px, 1vw, 18px);
+    border-top: 1.5px solid var(--ink);
+    padding-top: clamp(8px, 1vh, 14px);
+  }
+  .s-data .chart .ticks .ticklab {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(12px, 0.85vw, 14px);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    text-align: center;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 6 — QUOTE
+     ────────────────────────────────────────────────────────────── */
+  .s-quote { background: var(--paper); }
+  .s-quote .pixel-glitch {
+    top: clamp(40px, 4vh, 80px);
+    right: clamp(36px, 3.6vw, 80px);
+    width: clamp(160px, 16vw, 280px);
+    bottom: clamp(40px, 4vh, 80px);
+    opacity: 0.6;
+  }
+  .s-quote .qframe {
+    position: absolute;
+    left: clamp(36px, 3.6vw, 80px);
+    right: clamp(220px, 22vw, 380px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+  }
+  .s-quote .qkicker {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: clamp(12px, 0.9vw, 14px);
+    color: var(--ink);
+    margin-bottom: clamp(16px, 1.8vh, 28px);
+  }
+  .s-quote .qbody {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    font-size: clamp(50px, min(5.6vw, 9vh), 110px);
+    line-height: 1.05;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    max-width: 92%;
+  }
+  .s-quote .qattr {
+    margin-top: clamp(24px, 2.6vh, 40px);
+    display: grid; grid-template-columns: auto 1fr;
+    gap: clamp(14px, 1.4vw, 24px);
+    align-items: end;
+    border-top: 1px solid var(--ink);
+    padding-top: clamp(10px, 1.2vh, 18px);
+  }
+  .s-quote .qattr .who-tag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: clamp(13px, 0.92vw, 15px);
+    color: var(--ink);
+  }
+  .s-quote .qattr .role-meta {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(12px, 0.85vw, 14px);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    opacity: 0.78;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 7 — TREND TABLE (dense ledger)
+     ────────────────────────────────────────────────────────────── */
+  .s-table { background: var(--paper); }
+  .s-table .frame {
+    position: absolute;
+    inset: clamp(76px, 8vh, 130px) clamp(36px, 3.6vw, 80px) clamp(100px, 10vh, 150px);
+    display: flex; flex-direction: column;
+    z-index: 5;
+  }
+  .s-table .topbar {
+    display: flex; align-items: end; justify-content: space-between;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: clamp(12px, 1.4vh, 22px);
+    margin-bottom: clamp(14px, 1.6vh, 24px);
+    gap: 30px;
+  }
+  .s-table .topbar .h {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-size: clamp(46px, min(4.8vw, 8.2vh), 92px);
+    line-height: 0.95;
+    color: var(--ink);
+  }
+  .s-table .topbar .lab-tag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: clamp(12px, 0.9vw, 14px);
+    color: var(--ink); text-align: right;
+  }
+  .s-table .ledger {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    /* Distribute the rows so they fill the available height.
+       The header row stays at the top, body rows space evenly below. */
+    justify-content: stretch;
+  }
+  .s-table .row {
+    display: grid;
+    grid-template-columns: 76px 0.6fr 1.4fr 0.7fr 0.5fr;
+    gap: clamp(14px, 1.4vw, 28px);
+    align-items: center;
+    padding: 0;
+    flex: 1 1 0;
+    min-height: clamp(46px, 6vh, 80px);
+    border-bottom: 1px solid rgba(31, 43, 224, 0.18);
+  }
+  .s-table .row.headrow {
+    border-bottom: 1.5px solid var(--ink);
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 8px 0;
+  }
+  .s-table .row.headrow > div {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: clamp(11px, 0.75vw, 12px);
+    color: var(--ink);
+  }
+  .s-table .num-tag {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(13px, 0.95vw, 15px);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  .s-table .nm {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-size: clamp(20px, 1.6vw, 28px);
+    line-height: 1.15;
+    color: var(--ink);
+  }
+  .s-table .desc {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.95vw, 15px);
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  .s-table .mood-tag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: clamp(13px, 0.92vw, 15px);
+    color: var(--ink);
+  }
+  .s-table .delta-tag {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(13px, 0.92vw, 15px);
+    text-align: right;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  .s-table .delta-tag.up::before  { content: '↑ '; }
+  .s-table .delta-tag.down::before { content: '↓ '; opacity: 0.6; }
+  .s-table .delta-tag.flat::before { content: '— '; opacity: 0.6; }
+
+  /* ──────────────────────────────────────────────────────────────
+     SLIDE 8 — COLOPHON / CLOSING
+     ────────────────────────────────────────────────────────────── */
+  .s-colophon { background: var(--paper); }
+  .s-colophon .pixel-glitch {
+    top: clamp(80px, 9vh, 160px);
+    left: clamp(36px, 3.6vw, 80px);
+    width: clamp(220px, 26vw, 460px);
+    bottom: clamp(220px, 22vh, 360px);
+    opacity: 0.75;
+  }
+  .s-colophon .qr-block {
+    top: clamp(80px, 9vh, 160px);
+    right: clamp(36px, 3.6vw, 80px);
+    width: clamp(72px, 5vw, 100px);
+    height: clamp(72px, 5vw, 100px);
+  }
+  .s-colophon .titlewrap {
+    position: absolute;
+    right: clamp(36px, 3.6vw, 80px);
+    top: 28%;
+    z-index: 5;
+    max-width: 56%;
+    text-align: right;
+  }
+  .s-colophon .ktag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: clamp(12px, 0.9vw, 14px);
+    color: var(--ink);
+    margin-bottom: clamp(14px, 1.6vh, 24px);
+  }
+  .s-colophon .ttl {
+    font-family: 'Newsreader', Georgia, serif;
+    
+    font-weight: 400;
+    font-size: clamp(72px, min(8.4vw, 14vh), 180px);
+    line-height: 0.96;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .s-colophon .col-footer {
+    position: absolute;
+    left: clamp(36px, 3.6vw, 80px);
+    right: clamp(36px, 3.6vw, 80px);
+    bottom: clamp(106px, 10.4vh, 160px);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1.2fr;
+    gap: clamp(20px, 2.4vw, 44px);
+    z-index: 5;
+  }
+  .s-colophon .col-footer > div {
+    border-top: 1.5px solid var(--ink);
+    padding-top: clamp(10px, 1.2vh, 16px);
+  }
+  .s-colophon .col-footer .ftag {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: clamp(11px, 0.78vw, 13px);
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+  .s-colophon .col-footer .ftxt {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.95vw, 15px);
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     EXTENSIONS for this deck, built from the same system:
+     Newsreader / Hanken Grotesk / DM Mono, cobalt on cream,
+     1.5px ink rules, faint 0.18 dividers, hairline frame.
+     ────────────────────────────────────────────────────────────── */
+
+  /* 4-column ledger variant */
+  .s-table .ledger.cols-4 .row { grid-template-columns: 76px 0.75fr 0.95fr 1.4fr; }
+  .s-table .ledger.cols-4b .row { grid-template-columns: 76px 0.75fr 1.3fr 1.1fr; }
+  .s-table .delta-tag.plain { text-align: right; }
+
+  /* Footnote row under a ledger, same grammar as the manifesto attribution */
+  .note {
+    margin-top: clamp(14px, 1.6vh, 24px);
+    display: flex; gap: clamp(14px, 1.4vw, 24px); align-items: baseline;
+    border-top: 1px solid var(--ink);
+    padding-top: clamp(10px, 1.2vh, 18px);
+  }
+  .note .who {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em;
+    font-size: clamp(12px, 0.85vw, 14px);
+    color: var(--ink); white-space: nowrap;
+  }
+  .note .meta {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.95vw, 16px);
+    line-height: 1.45;
+    color: var(--ink);
+  }
+
+  /* Index with eight entries */
+  .s-index .list.list--8 { grid-template-rows: repeat(4, 1fr); }
+
+  /* CASE slide: stat column + numbered entries */
+  .s-data .entries {
+    display: flex; flex-direction: column; justify-content: center;
+    gap: clamp(12px, 1.6vh, 24px);
+  }
+  .s-data .entries .entry {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: clamp(12px, 1.4vw, 22px);
+    border-bottom: 1px solid rgba(31, 43, 224, 0.18);
+    padding-bottom: clamp(12px, 1.4vh, 20px);
+  }
+  .s-data .entries .num-tag {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(13px, 0.9vw, 15px);
+    color: var(--ink); letter-spacing: 0.04em; padding-top: 6px;
+  }
+  .s-data .entries h3 {
+    margin: 0 0 6px 0;
+    font-family: 'Newsreader', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(26px, 2vw, 40px);
+    line-height: 1.05;
+    color: var(--ink);
+  }
+  .s-data .entries p {
+    margin: 0;
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.95vw, 16px);
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  /* FLOW slide: swimlane of attack steps */
+  .s-flow .lanes {
+    flex: 1;
+    display: grid;
+    grid-template-columns: clamp(140px, 11vw, 210px) repeat(4, 1fr);
+    grid-template-rows: auto repeat(4, 1fr);
+    gap: clamp(8px, 1vh, 14px) clamp(10px, 1vw, 18px);
+  }
+  .s-flow .stage-h {
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: clamp(8px, 1vh, 12px);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .s-flow .stage-h .nmx {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: clamp(24px, 1.9vw, 36px);
+    line-height: 1; color: var(--ink);
+  }
+  .s-flow .stage-h .kc {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(12px, 0.82vw, 14px);
+    letter-spacing: 0.04em; color: var(--ink);
+  }
+  .s-flow .lane {
+    display: flex; align-items: center;
+    border-top: 1px solid rgba(31, 43, 224, 0.18);
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em;
+    font-size: clamp(11px, 0.8vw, 13px);
+    line-height: 1.35;
+    color: var(--ink);
+  }
+  .s-flow .step {
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: clamp(8px, 1vh, 14px) clamp(10px, 0.9vw, 16px);
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  }
+  .s-flow .step .n {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(12px, 0.85vw, 14px);
+    letter-spacing: 0.04em; color: var(--ink);
+  }
+  .s-flow .step .t {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 1vw, 17px);
+    line-height: 1.35; color: var(--ink);
+  }
+  .s-flow .step.hot { background: var(--ink); }
+  .s-flow .step.hot .n, .s-flow .step.hot .t { color: var(--paper); }
+  .s-flow .step.hot .t { font-weight: 600; }
+
+  /* ARCH slide: layered architecture */
+  .s-arch .arch {
+    flex: 1;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: clamp(6px, 0.9vh, 12px);
+  }
+  .s-arch .row5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(8px, 0.8vw, 14px); }
+  .s-arch .box {
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: clamp(8px, 1vh, 14px) clamp(8px, 0.8vw, 14px);
+    text-align: center;
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.98vw, 17px);
+    line-height: 1.3; color: var(--ink);
+  }
+  .s-arch .box b { font-weight: 600; }
+  .s-arch .link {
+    text-align: center;
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(12px, 0.85vw, 14px);
+    letter-spacing: 0.04em; color: var(--ink);
+  }
+  .s-arch .engine {
+    border: 1.5px solid var(--ink);
+    background: var(--paper-2);
+    padding: clamp(10px, 1.2vh, 18px) clamp(12px, 1vw, 18px);
+    display: flex; flex-direction: column; gap: clamp(8px, 1vh, 12px);
+  }
+  .s-arch .engine .cap {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em;
+    font-size: clamp(11px, 0.8vw, 13px); color: var(--ink);
+  }
+  .s-arch .engine .cells { display: grid; grid-template-columns: repeat(8, 1fr); gap: clamp(6px, 0.6vw, 10px); }
+  .s-arch .engine .cells .box { padding: clamp(6px, 0.8vh, 10px) 4px; }
+  .s-arch .hermes {
+    background: var(--ink);
+    padding: clamp(12px, 1.4vh, 20px) clamp(16px, 1.4vw, 26px);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  }
+  .s-arch .hermes .nmh {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: clamp(26px, 2.1vw, 40px); line-height: 1; color: var(--paper);
+  }
+  .s-arch .hermes .sub {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.98vw, 17px); line-height: 1.4; color: var(--paper);
+    text-align: right;
+  }
+  .s-arch .flow3 {
+    display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: clamp(10px, 1vw, 18px); align-items: center;
+  }
+  .s-arch .flow3 .arr {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(16px, 1.2vw, 22px); color: var(--ink);
+  }
+
+  /* MITIGATION slide: two columns */
+  .s-mitig .cols {
+    flex: 1;
+    display: grid; grid-template-columns: 1fr 1.15fr;
+    gap: clamp(28px, 3vw, 56px);
+  }
+  .s-mitig .col { display: flex; flex-direction: column; }
+  .s-mitig .col h4 {
+    margin: 0 0 clamp(6px, 0.8vh, 12px) 0;
+    padding-bottom: clamp(8px, 1vh, 12px);
+    border-bottom: 1.5px solid var(--ink);
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: clamp(12px, 0.9vw, 14px); color: var(--ink);
+  }
+  .s-mitig .ph {
+    flex: 1;
+    display: grid; grid-template-columns: clamp(150px, 11vw, 210px) 1fr;
+    gap: clamp(12px, 1.2vw, 20px); align-items: center;
+    border-bottom: 1px solid rgba(31, 43, 224, 0.18);
+  }
+  .s-mitig .ph .when {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: clamp(13px, 0.92vw, 15px); letter-spacing: 0.04em; color: var(--ink);
+  }
+  .s-mitig .ph .what {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: clamp(20px, 1.5vw, 28px); line-height: 1.2; color: var(--ink);
+  }
+  .s-mitig .areas {
+    flex: 1;
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr);
+    gap: 0 clamp(20px, 2vw, 36px);
+  }
+  .s-mitig .area {
+    border-bottom: 1px solid rgba(31, 43, 224, 0.18);
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+    padding: clamp(6px, 0.8vh, 12px) 0;
+  }
+  .s-mitig .area h3 {
+    margin: 0;
+    font-family: 'Newsreader', Georgia, serif; font-weight: 400;
+    font-size: clamp(22px, 1.7vw, 32px); line-height: 1.05; color: var(--ink);
+  }
+  .s-mitig .area p {
+    margin: 0;
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: clamp(14px, 0.95vw, 16px); line-height: 1.45; color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <defs>
+    <pattern id="vstripes" width="3" height="100" patternUnits="userSpaceOnUse">
+      <line x1="0.5" y1="0" x2="0.5" y2="100" stroke="#1F2BE0" stroke-width="1.2" />
+    </pattern>
+  </defs>
+</svg>
+
+<div class="deck">
+  <div class="stage">
+
+    <!-- 1. COVER -->
+    <section class="slide s-cover hairlines active">
+      <div class="titlewrap">
+        <h1 class="title">Insiden<br/>RAT</h1>
+        <div class="subkicker">
+          <div class="l caption">Tugas 2 · Cyber Security</div>
+          <div class="ed">Infeksi Remote Access Trojan lewat situs pemerintah, dan model pertahanan A.E.G.I.S.</div>
+        </div>
+      </div>
+
+      <div class="pixel-glitch" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <pattern id="vs1" width="2.4" height="100" patternUnits="userSpaceOnUse">
+              <line x1="0.5" y1="0" x2="0.5" y2="100" stroke="#1F2BE0" stroke-width="1.0" />
+            </pattern>
+          </defs>
+          <rect x="36" y="0"  width="38" height="14" fill="url(#vs1)"/>
+          <rect x="22" y="14" width="50" height="12" fill="url(#vs1)"/>
+          <rect x="34" y="26" width="46" height="11" fill="url(#vs1)"/>
+          <rect x="16" y="37" width="60" height="13" fill="url(#vs1)"/>
+          <rect x="28" y="50" width="48" height="11" fill="url(#vs1)"/>
+          <rect x="18" y="61" width="62" height="14" fill="url(#vs1)"/>
+          <rect x="34" y="75" width="44" height="12" fill="url(#vs1)"/>
+          <rect x="22" y="87" width="50" height="13" fill="url(#vs1)"/>
+        </svg>
+      </div>
+
+      <div class="vstack">
+        <div class="v-row caption">tugas.02</div>
+        <div class="v-row caption">okt 2026</div>
+        <div class="v-row caption">amikom.ac.id</div>
+      </div>
+
+      <div class="cfooter">
+        <div class="colf">
+          <div class="ftag caption">Disusun oleh</div>
+          <div>M. Abiyyu Rahman 25.51.1738 · Bagas Restya Ermawan 25.51.1779<br/>Elsa Monica Putri 25.51.1809 · Linda Sofiana 25.51.1762<br/>Sintia Eka Purwati 25.51.1765</div>
+        </div>
+        <div class="colf">
+          <div class="ftag caption">Program</div>
+          <div>Magister Informatika<br/>Universitas AMIKOM Yogyakarta</div>
+        </div>
+      </div>
+
+      <div class="pagenum">01 / 15</div>
+    </section>
+
+    <!-- 2. LATAR BELAKANG -->
+    <section class="slide s-data hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Satu situs, ratusan PC.</div>
+          <div class="lab-tag caption">Latar belakang · studi kasus</div>
+        </div>
+        <div class="body">
+          <div class="col-a">
+            <div class="stat">
+              <div class="vbig">±500</div>
+              <div class="lab2 caption">PC instansi terinfeksi</div>
+              <div class="desc">Remote Access Trojan menyebar dari situs pemerintah yang dikelola pihak ketiga.</div>
+            </div>
+            <div class="stat">
+              <div class="vbig" style="font-size: clamp(72px, min(7vw, 11vh), 150px);">4</div>
+              <div class="lab2 caption">Tahap serangan</div>
+              <div class="desc">Survey, Delivery, Breach, Affect.</div>
+            </div>
+          </div>
+          <div class="entries">
+            <div class="entry">
+              <div class="num-tag caption">01.</div>
+              <div><h3>Situs vendor disusupi</h3><p>Penyerang memindai situs, menemukan celah, lalu menyisipkan script berbahaya.</p></div>
+            </div>
+            <div class="entry">
+              <div class="num-tag caption">02.</div>
+              <div><h3>Pegawai jadi jalur infeksi</h3><p>Membuka situs resmi sudah cukup untuk terinfeksi: pola watering hole.</p></div>
+            </div>
+            <div class="entry">
+              <div class="num-tag caption">03.</div>
+              <div><h3>Akar masalah di dua pihak</h3><p>Vendor membiarkan celah; instansi tidak mengawasi vendor maupun lalu lintas keluar jaringannya.</p></div>
+            </div>
+            <div class="entry">
+              <div class="num-tag caption">04.</div>
+              <div><h3>Arah presentasi</h3><p>Kami menganalisis serangan ini dan memakai A.E.G.I.S + Hermes AI Agent sebagai model pertahanannya.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pagenum">02 / 15</div>
+    </section>
+
+    <!-- 3. MENGENAL A.E.G.I.S -->
+    <section class="slide s-index hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">A.E.G.I.S, dalam enam fitur.</div>
+          <div class="lab-tag caption">Automated Extraction, Gathering,<br/>and Intelligence System</div>
+        </div>
+        <div class="list">
+          <div class="row"><div class="num-tag caption">01.</div><div><h3>OSINT Map</h3><p>Investigasi dari berita, YouTube, dan media sosial dalam satu permintaan.</p></div></div>
+          <div class="row"><div class="num-tag caption">02.</div><div><h3>War Room</h3><p>Dasbor real-time untuk memantau investigasi yang sedang berjalan.</p></div></div>
+          <div class="row"><div class="num-tag caption">03.</div><div><h3>Entity Graph</h3><p>Pemetaan relasi antar entitas yang ditemukan.</p></div></div>
+          <div class="row"><div class="num-tag caption">04.</div><div><h3>Judol Scanner</h3><p>Pemindaian konten sisipan pada situs; prinsipnya sama dengan deteksi situs yang disusupi.</p></div></div>
+          <div class="row"><div class="num-tag caption">05.</div><div><h3>Wazuh SIEM</h3><p>Status agent dan alert keamanan endpoint dari Wazuh Manager dan Indexer.</p></div></div>
+          <div class="row"><div class="num-tag caption">06.</div><div><h3>Hermes AI Agent</h3><p>Analis berbasis LLM untuk chat, briefing, dan smart investigation.</p></div></div>
+        </div>
+      </div>
+      <div class="pagenum">03 / 15</div>
+    </section>
+
+    <!-- 4. TEKNOLOGI -->
+    <section class="slide s-table hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Tujuh lapisan, satu platform.</div>
+          <div class="lab-tag caption">Teknologi yang digunakan</div>
+        </div>
+        <div class="ledger cols-4">
+          <div class="row headrow"><div class="caption">No.</div><div class="caption">Lapisan</div><div class="caption">Teknologi</div><div class="caption">Peran</div></div>
+          <div class="row"><div class="num-tag caption">01.</div><div class="nm">Frontend</div><div class="mood-tag">Next.js 14 (App Router)</div><div class="desc">OSINT Map, War Room, Entity Graph, halaman Agent.</div></div>
+          <div class="row"><div class="num-tag caption">02.</div><div class="nm">Backend API</div><div class="mood-tag">FastAPI + SQLAlchemy async</div><div class="desc">REST API dan logika investigasi.</div></div>
+          <div class="row"><div class="num-tag caption">03.</div><div class="nm">Task queue</div><div class="mood-tag">Celery + Redis</div><div class="desc">Antrean collector, scanner, graph, dan nlp.</div></div>
+          <div class="row"><div class="num-tag caption">04.</div><div class="nm">Database</div><div class="mood-tag">PostgreSQL 17 + pgvector</div><div class="desc">Data investigasi dan pencarian kemiripan vektor.</div></div>
+          <div class="row"><div class="num-tag caption">05.</div><div class="nm">NLP</div><div class="mood-tag">RoBERTa Indonesia</div><div class="desc">Klasifikasi sentimen teks berbahasa Indonesia.</div></div>
+          <div class="row"><div class="num-tag caption">06.</div><div class="nm">SIEM</div><div class="mood-tag">Wazuh Manager + Indexer</div><div class="desc">Status agent dan alert keamanan endpoint.</div></div>
+          <div class="row"><div class="num-tag caption">07.</div><div class="nm">AI Agent</div><div class="mood-tag">Hermes Agent (Nous Research)</div><div class="desc">Analis berbasis LLM dengan provider yang bisa dipilih.</div></div>
+        </div>
+      </div>
+      <div class="pagenum">04 / 15</div>
+    </section>
+
+    <!-- 5. HERMES -->
+    <section class="slide s-chapter hairlines">
+      <div class="pixel-glitch" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <pattern id="vs5" width="2.4" height="100" patternUnits="userSpaceOnUse">
+              <line x1="0.5" y1="0" x2="0.5" y2="100" stroke="#1F2BE0" stroke-width="1.0" />
+            </pattern>
+          </defs>
+          <rect x="40" y="0"  width="40" height="14" fill="url(#vs5)"/>
+          <rect x="20" y="14" width="56" height="12" fill="url(#vs5)"/>
+          <rect x="32" y="26" width="48" height="11" fill="url(#vs5)"/>
+          <rect x="14" y="37" width="64" height="13" fill="url(#vs5)"/>
+          <rect x="26" y="50" width="50" height="11" fill="url(#vs5)"/>
+          <rect x="16" y="61" width="62" height="14" fill="url(#vs5)"/>
+          <rect x="32" y="75" width="46" height="12" fill="url(#vs5)"/>
+          <rect x="20" y="87" width="54" height="13" fill="url(#vs5)"/>
+        </svg>
+      </div>
+      <div class="frame">
+        <div class="nm-tag caption">Hermes AI Agent · analis AI di dalam A.E.G.I.S</div>
+        <h2 class="ttl">Analis AI yang membaca hasil investigasi.</h2>
+        <p class="lede">Empat fitur sudah berjalan: chat tentang hasil investigasi, auto briefing setelah job selesai, analyze untuk anomali, koordinasi, dan sentimen, serta smart investigation yang menyusun strategi dan query tambahan. Hermes memakai LLM dari provider yang dikonfigurasi; tanpa Hermes, A.E.G.I.S tetap berjalan dengan analisis template. Untuk kasus ini, perannya diperluas menjadi analis SOC.</p>
+      </div>
+      <div class="pagenum">05 / 15</div>
+    </section>
+
+    <!-- 6. KONSEP -->
+    <section class="slide s-index hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Konsep dan kerangka analisis.</div>
+          <div class="lab-tag caption">Tiga konsep · tiga kerangka</div>
+        </div>
+        <div class="list">
+          <div class="row"><div class="num-tag caption">01.</div><div><h3>Watering hole</h3><p>Situs yang sering dikunjungi target disusupi; pengunjung terinfeksi tanpa mengklik apa pun.</p></div></div>
+          <div class="row"><div class="num-tag caption">02.</div><div><h3>Remote Access Trojan</h3><p>Malware yang memberi kendali jarak jauh: perintah, berkas, dan pivot ke host lain.</p></div></div>
+          <div class="row"><div class="num-tag caption">03.</div><div><h3>Trusted relationship</h3><p>Instansi mewarisi risiko vendor yang mengelola asetnya; kepercayaan menjadi pintu masuk.</p></div></div>
+          <div class="row"><div class="num-tag caption">04.</div><div><h3>Model NCSC</h3><p>Empat tahap dari soal: Survey, Delivery, Breach, Affect.</p></div></div>
+          <div class="row"><div class="num-tag caption">05.</div><div><h3>Kill Chain dan ATT&amp;CK</h3><p>Tahap yang lebih rinci, lalu teknik spesifik untuk setiap tahap.</p></div></div>
+          <div class="row"><div class="num-tag caption">06.</div><div><h3>NIST SP 800-61r3</h3><p>Kerangka respons insiden yang selaras dengan NIST CSF 2.0.</p></div></div>
+        </div>
+      </div>
+      <div class="pagenum">06 / 15</div>
+    </section>
+
+    <!-- 7. ALUR SERANGAN (extended layout) -->
+    <section class="slide s-table s-flow hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Alur serangan, delapan langkah.</div>
+          <div class="lab-tag caption">4 tahap · 4 aktor</div>
+        </div>
+        <div class="lanes">
+          <div></div>
+          <div class="stage-h"><div class="nmx">Survey</div><div class="kc">Recon, Weaponization</div></div>
+          <div class="stage-h"><div class="nmx">Delivery</div><div class="kc">Delivery, Exploitation</div></div>
+          <div class="stage-h"><div class="nmx">Breach</div><div class="kc">Installation, C2</div></div>
+          <div class="stage-h"><div class="nmx">Affect</div><div class="kc">Actions on Objectives</div></div>
+
+          <div class="lane">Penyerang</div>
+          <div class="step"><div class="n">01</div><div class="t">Pindai otomatis situs vendor</div></div>
+          <div></div><div></div><div></div>
+
+          <div class="lane">Situs pemerintah<br/>(vendor)</div>
+          <div class="step"><div class="n">02</div><div class="t">Sisipkan script berbahaya di situs</div></div>
+          <div class="step"><div class="n">03</div><div class="t">Pegawai mengakses situs, diarahkan ke exploit</div></div>
+          <div></div><div></div>
+
+          <div class="lane">PC instansi</div>
+          <div></div>
+          <div class="step hot"><div class="n">04</div><div class="t">Sekitar 500 PC terinfeksi RAT</div></div>
+          <div class="step"><div class="n">05</div><div class="t">RAT persisten, mengirim beacon</div></div>
+          <div class="step"><div class="n">07</div><div class="t">Discovery dan lateral movement</div></div>
+
+          <div class="lane">Domain C2<br/>(penyerang)</div>
+          <div></div><div></div>
+          <div class="step"><div class="n">06</div><div class="t">Menerima info sistem dan jaringan</div></div>
+          <div class="step"><div class="n">08</div><div class="t">Eksfiltrasi data sensitif</div></div>
+        </div>
+        <div class="note">
+          <div class="who caption">Titik balik</div>
+          <div class="meta">Langkah 3 dan 4: infeksi pindah dari situs ke PC. Sejak langkah 5: penyerang mengendalikan host lewat C2.</div>
+        </div>
+      </div>
+      <div class="pagenum">07 / 15</div>
+    </section>
+
+    <!-- 8. PEMETAAN FRAMEWORK -->
+    <section class="slide s-table hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Dari tahap ke teknik.</div>
+          <div class="lab-tag caption">NCSC · Kill Chain · MITRE ATT&amp;CK</div>
+        </div>
+        <div class="ledger cols-4">
+          <div class="row headrow"><div class="caption">No.</div><div class="caption">Tahap NCSC</div><div class="caption">Kill Chain</div><div class="caption">Teknik ATT&amp;CK utama</div></div>
+          <div class="row"><div class="num-tag caption">01.</div><div class="nm">Survey</div><div class="mood-tag">Reconnaissance</div><div class="desc">T1595 Active Scanning</div></div>
+          <div class="row"><div class="num-tag caption">02.</div><div class="nm">Survey (upload script)</div><div class="mood-tag">Weaponization</div><div class="desc">T1190 Exploit Public-Facing Application</div></div>
+          <div class="row"><div class="num-tag caption">03.</div><div class="nm">Delivery</div><div class="mood-tag">Delivery, Exploitation</div><div class="desc">T1189 Drive-by Compromise, T1203 Exploitation for Client Execution</div></div>
+          <div class="row"><div class="num-tag caption">04.</div><div class="nm">Breach</div><div class="mood-tag">Installation, C2</div><div class="desc">T1547.001 Run Keys, T1071.001 Web Protocols, T1219, T1199 Trusted Relationship</div></div>
+          <div class="row"><div class="num-tag caption">05.</div><div class="nm">Affect</div><div class="mood-tag">Actions on Objectives</div><div class="desc">T1021 Remote Services, T1041 Exfiltration Over C2</div></div>
+        </div>
+        <div class="note">
+          <div class="who caption">Catatan analitis</div>
+          <div class="meta">Soal memasukkan upload script ke Survey, padahal secara teknis itu weaponization. Kami memisahkannya agar titik kontrol per tahap terlihat jelas.</div>
+        </div>
+      </div>
+      <div class="pagenum">08 / 15</div>
+    </section>
+
+    <!-- 9. AKTOR DAN AKAR MASALAH -->
+    <section class="slide s-table hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Enam aktor, kegagalan berlapis.</div>
+          <div class="lab-tag caption">Aktor dan akar masalah</div>
+        </div>
+        <div class="ledger cols-4b">
+          <div class="row headrow"><div class="caption">No.</div><div class="caption">Aktor</div><div class="caption">Peran dalam insiden</div><div class="caption">Kegagalan kontrol</div></div>
+          <div class="row"><div class="num-tag caption">01.</div><div class="nm">Penyerang</div><div class="desc">Memindai, mengeksploitasi, menyebar RAT, mencuri data.</div><div class="mood-tag">Pelaku</div></div>
+          <div class="row"><div class="num-tag caption">02.</div><div class="nm">Vendor pihak ketiga</div><div class="desc">Mengelola dan meng-host situs yang disusupi.</div><div class="mood-tag">Celah tidak ditambal, tanpa WAF</div></div>
+          <div class="row"><div class="num-tag caption">03.</div><div class="nm">Instansi pemerintah</div><div class="desc">Pemilik aset dan data, pengguna situs.</div><div class="mood-tag">Tanpa pengawasan vendor, egress terbuka, tanpa deteksi terpusat</div></div>
+          <div class="row"><div class="num-tag caption">04.</div><div class="nm">Pegawai</div><div class="desc">Jalur infeksi tanpa sadar.</div><div class="mood-tag">Patch browser tertinggal</div></div>
+          <div class="row"><div class="num-tag caption">05.</div><div class="nm">BSSN (Gov-CSIRT)</div><div class="desc">Koordinasi penanganan insiden siber nasional.</div><div class="mood-tag">Berperan saat respons</div></div>
+          <div class="row"><div class="num-tag caption">06.</div><div class="nm">Aparat penegak hukum</div><div class="desc">Penyidikan aspek pidana.</div><div class="mood-tag">Berperan saat respons</div></div>
+        </div>
+      </div>
+      <div class="pagenum">09 / 15</div>
+    </section>
+
+    <!-- 10. STUDI KASUS -->
+    <section class="slide s-table hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Pola yang berulang.</div>
+          <div class="lab-tag caption">Studi kasus nyata · 2013 sampai 2024</div>
+        </div>
+        <div class="ledger">
+          <div class="row headrow"><div class="caption">Tahun</div><div class="caption">Kasus</div><div class="caption">Pola serangan</div><div class="caption">Relevansi</div><div class="caption">Wilayah</div></div>
+          <div class="row"><div class="num-tag caption">2013</div><div class="nm">Dept. of Labor</div><div class="desc">Situs pemerintah disusupi, pengunjung dipasangi malware akses jarak jauh.</div><div class="mood-tag">Paling mirip</div><div class="delta-tag plain caption">AS</div></div>
+          <div class="row"><div class="num-tag caption">2013</div><div class="nm">Target Corp.</div><div class="desc">Masuk lewat kredensial vendor HVAC, data kartu pembayaran dicuri.</div><div class="mood-tag">Risiko vendor</div><div class="delta-tag plain caption">AS</div></div>
+          <div class="row"><div class="num-tag caption">2017</div><div class="nm">KNF</div><div class="desc">Situs regulator keuangan disusupi untuk menginfeksi bank pengaksesnya.</div><div class="mood-tag">Situs otoritas</div><div class="delta-tag plain caption">Polandia</div></div>
+          <div class="row"><div class="num-tag caption">2020</div><div class="nm">SolarWinds</div><div class="desc">Update vendor disisipi backdoor, menjangkau banyak instansi pemerintah.</div><div class="mood-tag">Rantai pasok</div><div class="delta-tag plain caption">AS</div></div>
+          <div class="row"><div class="num-tag caption">2024</div><div class="nm">PDNS 2</div><div class="desc">Ransomware melumpuhkan layanan ratusan instansi di pusat data pihak ketiga.</div><div class="mood-tag">Konteks lokal</div><div class="delta-tag plain caption">Indonesia</div></div>
+        </div>
+        <div class="note">
+          <div class="who caption">Pelajaran</div>
+          <div class="meta">Kepercayaan pada vendor atau situs resmi tidak bisa menggantikan verifikasi dan pemantauan.</div>
+        </div>
+      </div>
+      <div class="pagenum">10 / 15</div>
+    </section>
+
+    <!-- 11. MODUL A.E.G.I.S -->
+    <section class="slide s-index hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Delapan modul pertahanan.</div>
+          <div class="lab-tag caption">Mesin deteksi + Hermes di setiap modul</div>
+        </div>
+        <div class="list list--8">
+          <div class="row"><div class="num-tag caption">M1</div><div><h3>Web Integrity</h3><p>Hash berkas dan DOM; Hermes menilai script yang berubah.</p></div></div>
+          <div class="row"><div class="num-tag caption">M2</div><div><h3>Attack Surface</h3><p>CVE pada aset vendor; Hermes memprioritaskan perbaikan.</p></div></div>
+          <div class="row"><div class="num-tag caption">M3</div><div><h3>Infection Tracker</h3><p>Wazuh + Sysmon; Hermes merangkai alert menjadi cerita infeksi.</p></div></div>
+          <div class="row"><div class="num-tag caption">M4</div><div><h3>C2 Beacon</h3><p>Interval koneksi dan entropi domain; Hermes menautkan host ke C2.</p></div></div>
+          <div class="row"><div class="num-tag caption">M5</div><div><h3>IOC Correlator</h3><p>BSSN, MISP, ThreatFox; Hermes memperkaya IOC dengan OSINT.</p></div></div>
+          <div class="row"><div class="num-tag caption">M6</div><div><h3>Attack Graph</h3><p>Graf situs, host, dan C2; Hermes mencari patient zero.</p></div></div>
+          <div class="row"><div class="num-tag caption">M7</div><div><h3>Response Playbook</h3><p>Isolasi host dan blokir C2, hanya setelah analis menyetujui.</p></div></div>
+          <div class="row"><div class="num-tag caption">M8</div><div><h3>Data Leak</h3><p>Pola data instansi di sumber kebocoran; Hermes menilai sensitivitasnya.</p></div></div>
+        </div>
+      </div>
+      <div class="pagenum">11 / 15</div>
+    </section>
+
+    <!-- 12. ARSITEKTUR (extended layout) -->
+    <section class="slide s-table s-arch hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Arsitektur pertahanan.</div>
+          <div class="lab-tag caption">Hermes merangkai, analis memutuskan</div>
+        </div>
+        <div class="arch">
+          <div class="row5">
+            <div class="box">Situs instansi dan vendor</div>
+            <div class="box">PC: Wazuh + Sysmon</div>
+            <div class="box">Log DNS, proxy, firewall</div>
+            <div class="box">Feed IOC</div>
+            <div class="box">OSINT dan dark web</div>
+          </div>
+          <div class="link">↓</div>
+          <div class="engine">
+            <div class="cap">Mesin deteksi (Celery) · deterministik dan dapat diaudit</div>
+            <div class="cells">
+              <div class="box">M1 Integrity</div><div class="box">M2 Surface</div><div class="box">M3 Infection</div><div class="box">M4 Beacon</div>
+              <div class="box">M5 IOC</div><div class="box">M6 Graph</div><div class="box">M8 Leak</div><div class="box">PostgreSQL</div>
+            </div>
+          </div>
+          <div class="link">↕ tool calling: baca temuan, korelasi</div>
+          <div class="hermes">
+            <div class="nmh">Hermes AI Agent</div>
+            <div class="sub">korelasi temuan · incident briefing · draf laporan BSSN dan PDP · usulan aksi</div>
+          </div>
+          <div class="link">↓</div>
+          <div class="flow3">
+            <div class="box"><b>War Room</b> · briefing dan chat</div>
+            <div class="arr">→</div>
+            <div class="box"><b>Analis SOC</b> · meninjau dan menyetujui</div>
+            <div class="arr">→</div>
+            <div class="box"><b>M7 Playbook</b> · isolasi host, blokir C2</div>
+          </div>
+        </div>
+        <div class="note">
+          <div class="who caption">Alur</div>
+          <div class="meta">Alert M1 → Hermes menilai script → cari host (M3) → cek beacon (M4) → briefing → analis setuju → M7 eksekusi.</div>
+        </div>
+      </div>
+      <div class="pagenum">12 / 15</div>
+    </section>
+
+    <!-- 13. GUARDRAILS -->
+    <section class="slide s-index hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Pengaman untuk Hermes.</div>
+          <div class="lab-tag caption">Guardrails AI di sistem keamanan</div>
+        </div>
+        <div class="list">
+          <div class="row"><div class="num-tag caption">01.</div><div><h3>Human-in-the-loop</h3><p>Hermes hanya mengusulkan; isolasi dan blokir butuh persetujuan analis.</p></div></div>
+          <div class="row"><div class="num-tag caption">02.</div><div><h3>Konten sebagai data</h3><p>Script berbahaya dan konten bocoran bisa berisi prompt injection; dianalisis tanpa akses aksi.</p></div></div>
+          <div class="row"><div class="num-tag caption">03.</div><div><h3>Berbasis bukti</h3><p>Setiap kesimpulan merujuk ID alert, host, atau log untuk menekan halusinasi.</p></div></div>
+          <div class="row"><div class="num-tag caption">04.</div><div><h3>Jejak audit</h3><p>Chat, pemanggilan tool, usulan, dan persetujuan tersimpan di database.</p></div></div>
+          <div class="row"><div class="num-tag caption">05.</div><div><h3>Mode fallback</h3><p>Tanpa Hermes, deteksi tetap berjalan dan briefing memakai template.</p></div></div>
+          <div class="row"><div class="num-tag caption">06.</div><div><h3>Hanya defensif</h3><p>Pemindaian hanya pada aset instansi dan vendor dengan izin; aksi hanya di jaringan instansi.</p></div></div>
+        </div>
+      </div>
+      <div class="pagenum">13 / 15</div>
+    </section>
+
+    <!-- 14. MITIGASI (extended layout) -->
+    <section class="slide s-table s-mitig hairlines">
+      <div class="frame">
+        <div class="topbar">
+          <div class="h">Hentikan dulu, perbaiki kemudian.</div>
+          <div class="lab-tag caption">Rekomendasi mitigasi</div>
+        </div>
+        <div class="cols">
+          <div class="col">
+            <h4>Jangka pendek · saat insiden</h4>
+            <div class="ph"><div class="when">Jam pertama</div><div class="what">Takedown situs, blokir domain C2, isolasi host tanpa mematikan daya.</div></div>
+            <div class="ph"><div class="when">24 sampai 72 jam</div><div class="what">Forensik, tentukan cakupan, reset kredensial, lapor BSSN, notifikasi PDP paling lambat 3×24 jam.</div></div>
+            <div class="ph"><div class="when">Pemulihan</div><div class="what">Reimage host, pulihkan situs dari sumber bersih, pantau intensif 30 hari.</div></div>
+          </div>
+          <div class="col">
+            <h4>Jangka panjang</h4>
+            <div class="areas">
+              <div class="area"><h3>Tata kelola vendor</h3><p>SLA patch, kewajiban lapor insiden, hak audit.</p></div>
+              <div class="area"><h3>Aplikasi web</h3><p>Secure SDLC, pentest berkala, WAF, CSP.</p></div>
+              <div class="area"><h3>Endpoint</h3><p>Patch terpusat, EDR, application allowlisting.</p></div>
+              <div class="area"><h3>Jaringan</h3><p>Segmentasi, kontrol egress, menuju zero trust.</p></div>
+              <div class="area"><h3>Deteksi dan respons</h3><p>SIEM, SOC, latihan tabletop rutin.</p></div>
+              <div class="area"><h3>SDM</h3><p>Awareness rutin, penguatan CSIRT instansi.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pagenum">14 / 15</div>
+    </section>
+
+    <!-- 15. KESIMPULAN -->
+    <section class="slide s-colophon hairlines">
+      <div class="pixel-glitch" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <pattern id="vs15" width="2.4" height="100" patternUnits="userSpaceOnUse">
+              <line x1="0.5" y1="0" x2="0.5" y2="100" stroke="#1F2BE0" stroke-width="1.0" />
+            </pattern>
+          </defs>
+          <rect x="0"  y="0"  width="48" height="13" fill="url(#vs15)"/>
+          <rect x="14" y="13" width="56" height="12" fill="url(#vs15)"/>
+          <rect x="0"  y="25" width="64" height="14" fill="url(#vs15)"/>
+          <rect x="20" y="39" width="50" height="13" fill="url(#vs15)"/>
+          <rect x="6"  y="52" width="60" height="14" fill="url(#vs15)"/>
+          <rect x="18" y="66" width="48" height="13" fill="url(#vs15)"/>
+          <rect x="0"  y="79" width="56" height="14" fill="url(#vs15)"/>
+          <rect x="20" y="93" width="44" height="7"  fill="url(#vs15)"/>
+        </svg>
+      </div>
+
+      <div class="qr-block" aria-hidden="true">
+        <span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px"></span><span class="px on"></span>
+        <span class="px"></span><span class="px on"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px"></span>
+        <span class="px on"></span><span class="px"></span><span class="px"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px on"></span><span class="px on"></span>
+        <span class="px on"></span><span class="px on"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px on"></span><span class="px"></span><span class="px on"></span>
+        <span class="px"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px"></span><span class="px"></span><span class="px on"></span><span class="px"></span>
+        <span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px on"></span><span class="px on"></span><span class="px on"></span><span class="px"></span><span class="px on"></span>
+        <span class="px on"></span><span class="px on"></span><span class="px"></span><span class="px"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px on"></span>
+        <span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px on"></span><span class="px"></span><span class="px on"></span><span class="px on"></span><span class="px"></span>
+      </div>
+
+      <div class="titlewrap">
+        <div class="ktag caption">Kesimpulan · Tugas 2 Cyber Security</div>
+        <h2 class="ttl" style="font-size: clamp(60px, min(6vw, 10.5vh), 128px);">Tanggung jawab<br/>ada pada instansi.</h2>
+      </div>
+
+      <div class="col-footer">
+        <div>
+          <div class="ftag caption">01 · Penyebab</div>
+          <div class="ftxt">Serangan berhasil karena kegagalan berlapis di vendor dan instansi.</div>
+        </div>
+        <div>
+          <div class="ftag caption">02 · Deteksi</div>
+          <div class="ftxt">Deteksi harus bergeser ke tahap awal: saat situs berubah, bukan setelah 500 host.</div>
+        </div>
+        <div>
+          <div class="ftag caption">03 · Peran AI</div>
+          <div class="ftxt">A.E.G.I.S + Hermes mempercepat analisis; keputusan tetap pada analis.</div>
+        </div>
+        <div>
+          <div class="ftag caption">Peran utama</div>
+          <div class="ftxt">Pimpinan accountable · TI/CSIRT pelaksana respons · vendor memulihkan situs · BSSN koordinasi · APH penyidikan.</div>
+        </div>
+      </div>
+
+      <div class="pagenum">15 / 15</div>
+    </section>
+
+  </div>
+</div>
+
+<div class="caption nav-hint">← / → · space</div>
+
+<script>
+  // Plain vanilla navigation: arrows, space, home/end, swipe.
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = 0;
+  function show(i) {
+    if (i < 0) i = 0;
+    if (i > slides.length - 1) i = slides.length - 1;
+    slides[current].classList.remove('active');
+    slides[i].classList.add('active');
+    current = i;
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp')               { e.preventDefault(); show(current - 1); }
+    else if (e.key === 'Home')                                            { e.preventDefault(); show(0); }
+    else if (e.key === 'End')                                             { e.preventDefault(); show(slides.length - 1); }
+  });
+  let tx = null;
+  document.addEventListener('touchstart', (e) => { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (tx == null) return;
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 40) show(current + (dx < 0 ? 1 : -1));
+    tx = null;
+  });
+</script>
+
+</body>
+</html>
